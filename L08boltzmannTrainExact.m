@@ -11,10 +11,12 @@ function [W ll like] = L08boltzmannTrainExact(X, nH, WMask, nIter, epsilon, T)
 % that is always 1 to include the bias terms.
 
 [nV K] = size(X);
-N = nV + 1 + nH;
+N = nV + nH;
+%N = nV + 1 + nH;
 
-XWithBias = [ones(1, K); X];
-WMask = [0 ones(1,N-1); ones(N-1,1) WMask];
+XWithBias = X;
+%XWithBias = [ones(1, K); X];
+%WMask = [0 ones(1,N-1); ones(N-1,1) WMask];
 
 % posMat has each training state paired with all hidden states, grouped by
 % training state
@@ -25,7 +27,8 @@ for k = 1:K
 end
 
 % negMat has all possible states
-negMat = [ones(1, 2^(N-1)); generateAllStates(N-1)];
+%negMat = [ones(1, 2^(N-1)); generateAllStates(N-1)];
+negMat = generateAllStates(N);
 
 W = 0.1*randn(N);
 W = W * W';
@@ -33,7 +36,8 @@ W = W .* WMask;
 ll = [];
 for i = 1:nIter
     [rhoPlus pTilde] = expectedCorr(posMat, W, T, nH);
-    [rhoMinus,pTildeAll,Z] = expectedCorr(negMat, W, T, N-1);
+    %[rhoMinus,pTildeAll,Z] = expectedCorr(negMat, W, T, N-1);
+    [rhoMinus,pTildeAll,Z] = expectedCorr(negMat, W, T, N);
 
     allLike(i,:) = pTildeAll / Z;
     like = pTilde / Z;
@@ -41,7 +45,8 @@ for i = 1:nIter
 
     W = W + epsilon/T * (rhoPlus - K*rhoMinus) .* WMask;
 end
-subplots({W(2:end,2:end), WMask, ll, allLike})
+%subplots({W(2:end,2:end), WMask, ll, allLike})
+subplots({W, WMask, ll, allLike})
 
 
 function [R pTilde Z] = expectedCorr(states, W, T, nMarg)
@@ -96,7 +101,8 @@ dW = (newLL - baseLL) / delta;
 function ll = logLike(W, posMat, negMat, T, nH)
 % For numerical gradient
 [rhoPlus pTilde] = expectedCorr(posMat, W, T, nH);
-[rhoMinus,~,Z] = expectedCorr(negMat, W, T, size(W,1)-1);
+[rhoMinus,~,Z] = expectedCorr(negMat, W, T, size(W,1));
+%[rhoMinus,~,Z] = expectedCorr(negMat, W, T, size(W,1)-1);
 
 like = pTilde/Z;
 ll = sum(log(sum(reshape(like, 2^nH, []),1)));
