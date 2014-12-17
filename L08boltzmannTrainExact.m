@@ -1,14 +1,16 @@
-function [W ll like] = L08boltzmannTrainExact(X, nH, WMask, nIter, epsilon, T)
+function [W ll allLike] = L08boltzmannTrainExact(X, nH, WMask, nIter, epsilon, T, wInit)
 
 % Train a Boltzmann machine on data matrix X with nH hidden units
 %
-% W = L08boltzmannTrainExact(X, nH, WMask, nIter, eta, T)
+% W = L08boltzmannTrainExact(X, nH, WMask, nIter, eta, T, wInit)
 %
 % Training is done by exact marginalization of the terms in the likelihood
 % gradient, so make sure to keep nV and nH small. X is an nV x K data
 % matrix, nH is the number of hidden units to use, nIter is the number of
 % iterations of gradient descent to use.  One visible unit will be appended
 % that is always 1 to include the bias terms.
+
+if ~exist('wInit', 'var'), wInit = []; end
 
 [nV K] = size(X);
 N = nV + 1 + nH;
@@ -27,19 +29,30 @@ end
 % negMat has all possible states
 negMat = [ones(1, 2^(N-1)); generateAllStates(N-1)];
 
-W = 0.1*randn(N);
-W = W * W';
-W = W .* WMask;
+if isempty(wInit)
+    W = 0.1*randn(N);
+    W = W * W';
+    W = W .* WMask;
+else
+% Trying out specific W structures for a specific problem...
+%W = log(3) * [0 zeros(1,N-1); zeros(N-1,1) ones(N-1,N-1)-eye(N-1,N-1)];
+%W = [0 0 0 0;
+%    0 0 log(3) log(2);
+%    0 log(3) 0 log(1);
+%    0 log(2) log(1) 0];
+    W = wInit;
+end
 ll = [];
 for i = 1:nIter
     [rhoPlus pTilde] = expectedCorr(posMat, W, T, nH);
     [rhoMinus,pTildeAll,Z] = expectedCorr(negMat, W, T, N-1);
-
+    rhoTotal = rhoPlus - K*rhoMinus;
+    
     allLike(i,:) = pTildeAll / Z;
     like = pTilde / Z;
     ll(i) = sum(log(sum(reshape(like, 2^nH, K),1)));
 
-    W = W + epsilon/T * (rhoPlus - K*rhoMinus) .* WMask;
+    W = W + epsilon/T * rhoTotal .* WMask;
 end
 subplots({W(2:end,2:end), WMask, ll, allLike})
 
